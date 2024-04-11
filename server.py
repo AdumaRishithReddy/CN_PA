@@ -3,6 +3,7 @@ import _thread
 import cv2
 import pickle
 import struct
+import time
 import imutils
 import os 
 import queue
@@ -22,25 +23,48 @@ s.listen(5)
 mapping={}
 clients=[]
 
-vid = cv2.VideoCapture('tiny.mp4')
-fps = vid.get(cv2.CAP_PROP_FPS)
-delay = int(1000 / fps)
+videos_avail=['Mountain','valley','space']
 
-def generate_video(client):
-    
+# vid = cv2.VideoCapture('medium.mp4')
+# fps = vid.get(cv2.CAP_PROP_FPS)
+# delay = int(1000 / fps)
+
+def generate_video(client,ind):
+    vid_file=ind
+    print(vid_file)
+    # global vid
+    vid_l= cv2.VideoCapture(vid_file+"_low.mp4")
+    vid_m=cv2.VideoCapture(vid_file+"_med.mp4")
+    vid_h=cv2.VideoCapture(vid_file+"_high.mp4")
+    total_frames = int(vid_m.get(cv2.CAP_PROP_FRAME_COUNT))
+    # if vid is None:
+    #     print("No file")
+    fps = vid_l.get(cv2.CAP_PROP_FPS)
+    # global delay
+    delay = int(1000 / fps)
     WIDTH=400
+    count=0
     while True:
     # Capture the video frame by frame
+        if count<=total_frames/3:
+            vid=vid_l
+        elif count<=2*total_frames/3 and count>total_frames/3:
+            vid=vid_m
+            vid.set(cv2.CAP_PROP_POS_FRAMES, count-1)
+        else:
+            vid=vid_h
+            vid.set(cv2.CAP_PROP_POS_FRAMES, count-1)
         ret, frame = vid.read()
         if not ret:
             print("Can't receive frame (stream end?). Exiting ...")
             break
-
+        count+=1
         # Display the resulting frame
         cv2.imshow('Sending', frame)
         data = pickle.dumps(frame, 0)
         size = len(data)
         message_size = struct.pack("L", len(data)) ### CHANGED
+
 
 # Then data
         client.sendall(message_size + data)
@@ -49,7 +73,13 @@ def generate_video(client):
         # Wait for the appropriate time or until 'q' is pressed
         if cv2.waitKey(delay) & 0xFF == ord('q'):
             break
-    # cv2.destroyAllWindows()
+    end_signal = b'vid_end'
+    end_message = pickle.dumps(end_signal)  # Pickle the end signal for consistency
+    end_message_size = struct.pack("L", len(end_message))  # Pack the size as done with frames
+    client.sendall(end_message_size + end_message)  # Send the end signal
+
+    cv2.destroyAllWindows()
+    
     print('Player closed')
     BREAK=True
     # vid.release()
@@ -70,32 +100,6 @@ def vid_stream(client):
 
     # Then data
             client.sendall(message_size + data)
-            # except BrokenPipeError:
-            #     # Handle disconnection...
-            #     print("Disconnected")
-    # while True:
-    #     try:
-    #         if not q.empty:
-    #             f=q.get()  # grab the current frame
-    #             f = cv2.resize(f, (640, 480))  # resize the frame
-    #             encoded, buffer = cv2.imencode('.jpg', f)
-    #             jpg_as_text = base64.b64encode(buffer)
-    #             client.send(jpg_as_text)
-
-    #     except KeyboardInterrupt:
-    #         # camera.release()
-    #         cv2.destroyAllWindows()
-    #         break
-    # vid = cv2.VideoCapture('tiny.mp4')
-    # while(vid.isOpened()):
-    #     img,frame = vid.read()
-    #     a = pickle.dumps(frame)
-    #     message = struct.pack("Q",len(a))+a
-    #     client.sendall(message)
-    #     # cv2.imshow('Sending...',frame)
-    #     key = cv2.waitKey(10) 
-    #     if key ==13:
-    #         client.close()
 
 
 def broadcast_dictionary(exclude_socket=None):
@@ -114,20 +118,14 @@ def broadcast_dictionary(exclude_socket=None):
 
 def on_new_client(c,addr):
     m1="Enter your Name: "
-    c.sendall(m1.encode())
+ 
     r1=c.recv(1024).decode()
     print(r1)
     m2="Enter your public key: "
-    c.sendall(m2.encode())
     pk=c.recv(1024).decode()
     print(pk)
     mapping[r1]=pk
-    # new_client_notification = f"NEW_CLIENT:{r1}:{pk}"
-    
-    # for client_name, client_key in mapping.items():
-    #         if client_name != r1:  # Do not send the message back to the sender
-    #             c.sendall(r1.encode())
-    #             c.sendall(pk.encode())
+
     broadcast_dictionary(exclude_socket=None)
     
     a=True
@@ -165,8 +163,18 @@ def on_new_client(c,addr):
             #         c.sendall(msg.encode())
         elif r=='vid':
             print(r)
+            for i in videos_avail:
+                print(i)
+                a='vida:'+i
+                c.sendall(a.encode())
+            time.sleep(0.1)
+            c.sendall("end_list".encode())
+            print("AS")
+            choice=c.recv(1024).decode()
+            print(choice)
             c.sendall("vid:".encode())
-            generate_video(c)
+            generate_video(c,choice)
+            # c.sendall("vid_end".encode())
             # _thread.start_new_thread(generate_video,(c,))
             # _thread.start_new_thread(vid_stream,(c,))
             # vid_stream(c)
