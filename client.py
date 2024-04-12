@@ -22,6 +22,7 @@ end=[]
 input_lock = threading.Lock()
 vid_list=[]
 done=[]
+end_prog=[]
 vid_end=[]
 def decrypt_and_print(encrypted_msg):
     try:
@@ -29,7 +30,8 @@ def decrypt_and_print(encrypted_msg):
         decrypted_msg = cipher.decrypt(base64.b64decode(encrypted_msg)).decode()
         print("Decrypted message:", decrypted_msg)
     except Exception as e:
-        print("Error decrypting message:", e)
+        pass
+        # print("Error decrypting message:", e)
 
 def display_video():
     while True:
@@ -100,6 +102,10 @@ def receive_message():
                         vid_list.append(a)
                 elif msg.startswith("end_list"):
                     done.append(True)
+                elif "QUIT" in msg:
+                    print("ASAAD")
+                    end_prog.append(True)
+                    break
 
                 else:
                     # incorrect=incorrect+1
@@ -122,23 +128,6 @@ def handle_video_stream():
         with input_lock:
             client.sendall('vid'.encode())
             videos = []
-
-            # Receive the list of video names until the end indicator is received
-            
-            # while True:
-                # print(msg_q)
-                # if len(msg_q):
-                #     print("Queued ",msg_q)
-                #     # incorrect=incorrect-1
-                #     video_name=msg_q[0]
-                #     msg_q.pop(0)
-                # video_name = client.recv(1024).decode()
-                # print(video_name)
-                # if video_name == "end_list" or "end_list" in msg_q:
-                #     break
-                # else:
-                #     time.sleep(1)
-                # videos.append(video_name)
             while True not in done:
                 time.sleep(0.5)
             print("Available Videos:")
@@ -149,7 +138,6 @@ def handle_video_stream():
             if choice.isdigit() and 0 <= int(choice) < len(vid_list):
                 selected_video = vid_list[int(choice)]
                 client.sendall(selected_video.encode())
-                # display_video()
                 while False in vid_end:
                     pass
                 vid_list.clear()
@@ -168,7 +156,7 @@ mapping = {}
 
 receive_thread = threading.Thread(target=receive_message)
 receive_thread.start()
-# print("main",client.recv(1024).decode())
+
 name = input("Enter your name: ")
 client.sendall(name.encode())
 
@@ -180,9 +168,9 @@ client.sendall(pubkey.encode())
 print("Connected to the server.")
 
 while True:
-    # with input_lock:
+        print("INSTRUCTIONS\n-Msg to start chat\n-vid to start Video streaming \n-QUIT to exit from the application")
         r = input("Enter op: ")
-        if r == 'QUIT':
+        if r == 'QUIT' or True in end_prog :
             client.sendall(r.encode())
             break
         elif r == 'Msg':
@@ -201,12 +189,11 @@ while True:
             encrypted_message = cipher.encrypt(message)
             encoded_message = base64.b64encode(encrypted_message)
             client.sendall(encoded_message)
-            # out = client.recv(1024).decode()
-            # print(out)
         elif r == 'vid':
             handle_video_stream()
         else:
             pass
-    # time.sleep(0.5)
 
+# receive_thread.join()
+print("Thank you for using the application!!")
 client.close()

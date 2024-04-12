@@ -25,9 +25,6 @@ clients=[]
 
 videos_avail=['Mountain','valley','space']
 
-# vid = cv2.VideoCapture('medium.mp4')
-# fps = vid.get(cv2.CAP_PROP_FPS)
-# delay = int(1000 / fps)
 
 def generate_video(client,ind):
     vid_file=ind
@@ -84,22 +81,6 @@ def generate_video(client,ind):
     BREAK=True
     # vid.release()
 
-def vid_stream(client):
-    # client.sendall(fps)
-    while True:
-        if not q.empty:
-            f=q.get()
-            print("Recieved frame")
-            cv2.imshow('frame', f)
-            if cv2.waitKey(delay) & 0xFF == ord('q'):
-                break
-            # result, f = cv2.imencode('.jpg', f)
-            data = pickle.dumps(f, 0)
-            size = len(data)
-            message_size = struct.pack("L", len(data)) ### CHANGED
-
-    # Then data
-            client.sendall(message_size + data)
 
 
 def broadcast_dictionary(exclude_socket=None):
@@ -158,9 +139,6 @@ def on_new_client(c,addr):
                 if client ==c :
                     client.sendall("sent".encode())
             print("Sent msg: ",msg)
-            # for client_name, client_key in mapping.items():
-            #     if client_name != r1:  # Do not send the message back to the sender
-            #         c.sendall(msg.encode())
         elif r=='vid':
             print(r)
             for i in videos_avail:
@@ -174,15 +152,9 @@ def on_new_client(c,addr):
             print(choice)
             c.sendall("vid:".encode())
             generate_video(c,choice)
-            # c.sendall("vid_end".encode())
-            # _thread.start_new_thread(generate_video,(c,))
-            # _thread.start_new_thread(vid_stream,(c,))
-            # vid_stream(c)
+
         else:
             msg=msg+r
-        # for client_name, client_key in mapping.items():
-        #     if client_name != r1:  # Do not send the message back to the sender
-        #         c.sendall(msg.encode())
         
     del mapping[r1]
     clients.remove(c) 
@@ -195,9 +167,7 @@ def on_new_client(c,addr):
 while True:
    c, addr = s.accept() 
    clients.append(c) 
-#    users.append()    # Establish connection with client.
    print ('Got connection from', addr)
-#    print(mapping)
    _thread.start_new_thread(on_new_client,(c,addr))
    
 s.close()
